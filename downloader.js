@@ -12,7 +12,7 @@ const {Readable} = require("node:stream");
 
 // Wait for streaming to finish, this can take time so it should be a promise
 // but shouldn't be blocking, so it's a promise instead of async
-const {finished} = require("node:stream/promise");
+const {finished} = require("node:stream/promises");
 
 // Node file & directory path helper system
 // /folder/folder/filename.png
@@ -27,11 +27,18 @@ function downloadPokemonPicture(targetId = getRandomPokemonId()){
             // Step 1: get the image URL
             let newUrl = await getPokemonPictureUrl(targetId);
 
+            // Step 1b: Get the pokemon name
+            let pokemonName = await fetch("https://pokeapi.co/api/v2/pokemon/" + targetId).then(async (response) => {
+                return await response.json();
+            }).then(json => {
+                return json.name;
+            })
+
             // Step 2: do the download
-            let savedLFileLocation = await savePokemonPictureToDisk(newUrl, "ExampleImage.png", "storage");
+            let savedLFileLocation = await savePokemonPictureToDisk(newUrl, `${pokemonName}-${targetId}.png`, "storage");
             // return savedFileLocation
             resolve(savedLFileLocation);
-            
+
         } catch (error) {
             reject(error);
         }
@@ -74,7 +81,7 @@ async function getPokemonPictureUrl(targetId = getRandomPokemonId()){
 // Return the downloaded image's file path
 async function savePokemonPictureToDisk(targetUrl, targetDownloadFilename, targetDownloadDirectory = "."){
     // Fetch request to the image URL
-    let imageData = await fetcg(targetUrl).catch((error) => {
+    let imageData = await fetch(targetUrl).catch((error) => {
         throw new Error("Image failed to download.");
     });
 
@@ -94,7 +101,7 @@ async function savePokemonPictureToDisk(targetUrl, targetDownloadFilename, targe
     let fileDownloadStream = fs.createWriteStream(fullFileDestination);
 
     // get data as bytes from the web request ... pipe the bytes into the hard drive
-    await finished(Readable.fromWeb(imageData.body)).pipe(fileDownloadStream).catch(error => {
+    await finished(Readable.fromWeb(imageData.body).pipe(fileDownloadStream)).catch(error => {
         throw new Error("Failed to save content to disk.");
     });
 
